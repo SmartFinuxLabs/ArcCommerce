@@ -1,8 +1,4 @@
-# 001 Draft of Specification
-
-### Project Background
-
-Product Specifications Document (PSD) : **The Stablecoins Commerce Stack Challenge (Track 2: Working Capital & Trade Finance)**.
+Here is a comprehensive, deep-dive Product Specifications Document (PSD) tailored for **The Stablecoins Commerce Stack Challenge (Track 2: Working Capital & Trade Finance)**.
 
 This document synthesizes the technical requirements of the Circle/Arc stablecoin stack with the operational and structural realities of Supply Chain Finance (SCF) and factoring (specifically incorporating structural insights like registration, asset verification, and system risk management common in major SCF markets like China's CRC system).
 
@@ -41,7 +37,6 @@ By tokenizing accounts receivables (invoices) as unique on-chain digital assets 
 ## 2. Platform Actors & Roles
 
 ```
-
 +----------------+      1. Invoice Issuance      +---------------+
 |                | ----------------------------> |               |
 |    Supplier    |                               |     Buyer     |
@@ -68,23 +63,23 @@ By tokenizing accounts receivables (invoices) as unique on-chain digital assets 
 
 ### 2.1 The Supplier (SME)
 
-- **Definition:** The vendor providing goods/services to a creditworthy Core Enterprise.
-- **Activities:** Generates digital invoices, applies for factoring (early payment discount), manages capital inflows.
+* **Definition:** The vendor providing goods/services to a creditworthy Core Enterprise.
+* **Activities:** Generates digital invoices, applies for factoring (early payment discount), manages capital inflows.
 
 ### 2.2 The Buyer (Anchor / Core Enterprise)
 
-- **Definition:** A highly credit-rated enterprise whose balance sheet backs the risk profile of the trade financing.
-- **Activities:** Digitally verifies and accepts the invoice, cryptographically acknowledges the obligation to pay at Maturity Date.
+* **Definition:** A highly credit-rated enterprise whose balance sheet backs the risk profile of the trade financing.
+* **Activities:** Digitally verifies and accepts the invoice, cryptographically acknowledges the obligation to pay at Maturity Date.
 
 ### 2.3 The Factor / Institutional Investor (Liquidity Provider)
 
-- **Definition:** Financial institutions or decentralized pools providing the immediate liquidity (USDC capital advance).
-- **Activities:** Reviews audited supplier/buyer histories, finances receivables at a discount rate, collects principal + yield at maturity.
+* **Definition:** Financial institutions or decentralized pools providing the immediate liquidity (USDC capital advance).
+* **Activities:** Reviews audited supplier/buyer histories, finances receivables at a discount rate, collects principal + yield at maturity.
 
 ### 2.4 The Platform Operator / Registrar Agent
 
-- **Definition:** The smart contract protocol layer mirroring regulatory registration protocols (e.g., Central Registry-like functionalities).
-- **Activities:** Prevents duplicate tokenization, maintains compliance checks, triggers liquidation scripts upon maturity.
+* **Definition:** The smart contract protocol layer mirroring regulatory registration protocols (e.g., Central Registry-like functionalities).
+* **Activities:** Prevents duplicate tokenization, maintains compliance checks, triggers liquidation scripts upon maturity.
 
 ---
 
@@ -94,24 +89,28 @@ By tokenizing accounts receivables (invoices) as unique on-chain digital assets 
 
 To resolve structural risks highlighted in advanced asset registries (like China's CRC system), every invoice must be bound to a unique state machine on-chain.
 
-- **Step 1: Generation:** Supplier uploads invoice data (Invoice ID, Tax ID, Amount, Maturity Date).
-- **Step 2: Verification:** The system hashes these identifiers into a unique `InvoiceHash`. If the `InvoiceHash` already exists in the Smart Contract Registry, the system rejects it immediately (**Anti-Double Factoring Check**).
-- **Step 3: Commercial Acceptance:** The Buyer signs a transaction acknowledging the debt. This converts the invoice into an **Eligible Factoring Asset**.
+* **Step 1: Generation:** Supplier uploads invoice data (Invoice ID, Tax ID, Amount, Maturity Date).
+* **Step 2: Verification:** The system hashes these identifiers into a unique `InvoiceHash`. If the `InvoiceHash` already exists in the Smart Contract Registry, the system rejects it immediately (**Anti-Double Factoring Check**).
+* **Step 3: Commercial Acceptance:** The Buyer signs a transaction acknowledging the debt. This converts the invoice into an **Eligible Factoring Asset**.
 
 ### 3.2 Dynamic Discounting & Escrow Mechanism
 
-- **Funding Approval:** Once approved by an Investor, an automated **Circle Escrow Smart Contract** is deployed.
-- **The Split Flow:** * The Investor deposits 100% of the invoice value in USDC into the Escrow Contract.
-    - The contract immediately routes the **Advance Amount** (e.g., 80-90%) to the Supplier’s Circle Programmable Wallet.
-    - The remaining **Retention Amount** (e.g., 10-20%) stays locked in escrow to hedge against potential dilution risks (returns, defects).
+* **Funding Approval:** Once approved by an Investor, an automated **Circle Escrow Smart Contract** is deployed.
+* **The Split Flow:** * The Investor deposits 100% of the invoice value in USDC into the Escrow Contract.
+* The contract immediately routes the **Advance Amount** (e.g., 80-90%) to the Supplier’s Circle Programmable Wallet.
+* The remaining **Retention Amount** (e.g., 10-20%) stays locked in escrow to hedge against potential dilution risks (returns, defects).
+
+
 
 ### 3.3 Maturity & Automated Settlement Workflow
 
-- On the exact maturity date, the Buyer sends 100% of the invoice face value in USDC to the designated On-Chain Escrow address.
-- **Automated Distribution:** The contract executes a deterministic split:
-    1. **Principal + Discount Yield** is transferred directly to the Investor.
-    2. **The Remaining Balance** (Retention Amount minus factoring fees) is transferred to the Supplier.
-    3. The Tokenized Invoice state updates permanently to `SETTLED`.
+* On the exact maturity date, the Buyer sends 100% of the invoice face value in USDC to the designated On-Chain Escrow address.
+* **Automated Distribution:** The contract executes a deterministic split:
+1. **Principal + Discount Yield** is transferred directly to the Investor.
+2. **The Remaining Balance** (Retention Amount minus factoring fees) is transferred to the Supplier.
+3. The Tokenized Invoice state updates permanently to `SETTLED`.
+
+
 
 ---
 
@@ -121,7 +120,7 @@ To resolve structural risks highlighted in advanced asset registries (like China
 
 The product core operates natively on Circle's Arc Infrastructure utilizing four primary components:
 
-| **Circle Component** | **Architectural Function** |
+| Circle Component | Architectural Function |
 | --- | --- |
 | **Circle Programmable Wallets** | Embedded seamlessly via UI (User-Controlled/API-Controlled) for SMEs and Core Buyers so they interact with web3 rails using traditional Web2 social logins/IAM, abstracting gas management. |
 | **USDC Stablecoin** | The universal accounting, escrow, and settlement rail, ensuring zero price volatility for B2B cross-border trades. |
@@ -132,13 +131,11 @@ The product core operates natively on Circle's Arc Infrastructure utilizing four
 
 The platform utilizes three primary structural smart contracts:
 
-### 1. `InvoiceRegistry.sol`
+#### 1. `InvoiceRegistry.sol`
 
 Maintains the registry ledger of all outstanding receivables.
 
-Solidity
-
-```
+```solidity
 struct Invoice {
     bytes32 invoiceHash;
     address supplier;
@@ -148,19 +145,20 @@ struct Invoice {
     Status status; // PENDING, ACCEPTED, FACTORED, SETTLED
 }
 mapping(bytes32 => Invoice) public registry;
+
 ```
 
-### 2. `FactoringEscrow.sol`
+#### 2. `FactoringEscrow.sol`
 
 Handles the multi-party programmatic funds routing. It acts as an autonomous escrow manager executing payments conditionally based on timestamps or oracle-validated event fulfillments.
 
-### 3. `VerifiableProfile.sol`
+#### 3. `VerifiableProfile.sol`
 
 Builds a cryptographic, verifiable payment history for SMEs. Every timely invoice settlement increments the SME’s credit rating score on-chain, lowering borrowing costs iteratively over time (Track 2 objective).
 
 ### 4.3 System Risk Mitigation Matrix
 
-| **Identified Risk** | **Real-World Context (e.g., CRC Systems)** | **On-Chain Technical Remediation** |
+| Identified Risk | Real-World Context (e.g., CRC Systems) | On-Chain Technical Remediation |
 | --- | --- | --- |
 | **Asset Fraud (Fake Invoices)** | Creation of fictitious transactions between colluding parties. | Integration of decentralized oracles (Chainlink/API integrations) fetching data directly from sovereign tax authority endpoints or ERP systems (SAP/Oracle). |
 | **Double-Factoring** | Registering the same debt to multiple lenders. | **Cryptographic Mutex**: The `invoiceHash` functions as a unique key in a global key-value store database on-chain. Duplicate attempts revert automatically at the EVM state level. |
@@ -190,5 +188,5 @@ Builds a cryptographic, verifiable payment history for SMEs. Every timely invoic
 
 To maximize score outputs for the Stablecoins Commerce Stack Challenge criteria, the codebase and documentation must prove:
 
-- **Circle Product Feedback Section:** Highly visible layout explaining why *Circle Programmable Wallets* were critical for SME onboarding, and detailing performance metrics of *CCTP* handling multi-chain liquidity.
-- **Working Front/Backend MVP:** Front-end built with React/Next.js seamlessly interfacing with the Circle Web SDK, backed by Solidity contracts running on the Arc testnet environment.
+* **Circle Product Feedback Section:** Highly visible layout explaining why *Circle Programmable Wallets* were critical for SME onboarding, and detailing performance metrics of *CCTP* handling multi-chain liquidity.
+* **Working Front/Backend MVP:** Front-end built with React/Next.js seamlessly interfacing with the Circle Web SDK, backed by Solidity contracts running on the Arc testnet environment.
