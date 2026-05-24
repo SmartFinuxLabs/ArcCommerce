@@ -1,4 +1,6 @@
-Analysis on the provided image and will now explain how the yield model works, detailing how the individual invoice yields and the overall portfolio metrics are derived.
+# Risk-Adjusted Receivables Discount Yield Model
+
+This document explains the SCF platform's yield model: how investors earn returns from discounted receivables, how individual invoice yields are calculated, and how portfolio-level return metrics are derived.
 
 ### **The Fundamental Trade Finance Principle**
 
