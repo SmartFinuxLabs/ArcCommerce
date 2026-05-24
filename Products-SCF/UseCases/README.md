@@ -1,6 +1,6 @@
 # Verity Use Cases
 
-This folder contains one use case per file, derived from the Phase001 ideation analysis and the Phase002 product specification.
+This folder contains one use case per file, derived from the Round001 ideation analysis and the Round002 product specification.
 
 ## Use Case Index
 
