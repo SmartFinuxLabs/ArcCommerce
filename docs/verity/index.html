@@ -507,6 +507,87 @@
         font-weight: 700;
       }
 
+      .ai-columns {
+        display: grid;
+        grid-template-columns: 1.02fr 0.98fr;
+        gap: 4.4%;
+        margin-top: 5.4%;
+      }
+
+      .ai-summary {
+        display: grid;
+        gap: 4.5%;
+        align-content: start;
+      }
+
+      .summary-band {
+        padding: 4.5% 5%;
+        border: 1px solid var(--line);
+        background: var(--white);
+      }
+
+      .summary-band strong,
+      .ai-panel h3,
+      .ai-card h3,
+      .ai-tile h3 {
+        display: block;
+        margin-bottom: 4.5%;
+      }
+
+      .ai-signal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4.2%;
+      }
+
+      .ai-card-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 3.2%;
+        margin-top: 5.6%;
+      }
+
+      .ai-card,
+      .ai-panel,
+      .ai-tile {
+        padding: 7.2% 7%;
+        border: 1px solid var(--line);
+        background: var(--white);
+      }
+
+      .ai-card p,
+      .ai-panel p,
+      .ai-tile p {
+        font-size: clamp(0.64rem, 0.92vw, 0.88rem);
+      }
+
+      .ai-panel-stack {
+        display: grid;
+        gap: 3.4%;
+        margin-top: 5.4%;
+      }
+
+      .ai-pillar-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 2.6%;
+        margin-top: 5.4%;
+      }
+
+      .ai-tile {
+        min-height: 216px;
+      }
+
+      .ai-rule {
+        margin-top: 4.6%;
+        padding: 2.7% 3.2%;
+        border-left: 4px solid var(--coral);
+        background: var(--rose);
+        color: var(--ink);
+        font-size: clamp(0.62rem, 0.9vw, 0.84rem);
+        line-height: 1.32;
+      }
+
       @media (max-width: 760px) {
         .deck {
           width: 100%;
@@ -588,7 +669,7 @@
           <div class="footer"><span>Smart Finux Labs &middot; Verity SCF</span><span>01</span></div>
         </div>
         <nav class="slide-nav" aria-label="Slide navigation">
-          <a class="slide-arrow prev" href="#slide-5" title="Previous slide" aria-label="Previous slide">&lsaquo;</a>
+          <a class="slide-arrow prev" href="#slide-8" title="Previous slide" aria-label="Previous slide">&lsaquo;</a>
           <a class="slide-arrow next" href="#slide-2" title="Next slide" aria-label="Next slide">&rsaquo;</a>
         </nav>
       </section>
@@ -737,6 +818,119 @@
         </div>
         <nav class="slide-nav" aria-label="Slide navigation">
           <a class="slide-arrow prev" href="#slide-4" title="Previous slide" aria-label="Previous slide">&lsaquo;</a>
+          <a class="slide-arrow next" href="#slide-6" title="Next slide" aria-label="Next slide">&rsaquo;</a>
+        </nav>
+      </section>
+
+      <section class="slide" id="slide-6" tabindex="-1" aria-label="Slide 6">
+        <div class="slide-inner">
+          <p class="eyebrow">AI RISK ANALYSIS / WHY NOW</p>
+          <h2>AI should accelerate risk judgment, not replace Verity's acceptance and policy controls.</h2>
+          <div class="ai-columns">
+            <div class="ai-summary">
+              <div class="summary-band bg-mint">
+                <strong class="green">Executive stance</strong>
+                <p>Use AI as a decision-support layer across invoice submission, buyer validation, funding eligibility, allocation, and settlement monitoring.</p>
+              </div>
+              <div class="summary-band bg-sky">
+                <strong class="blue">What rules miss</strong>
+                <p>Static checks struggle with emerging buyer stress, low-grade dispute patterns, invoice manipulation signals, and portfolio drift that only becomes visible over time.</p>
+              </div>
+              <div class="summary-band bg-amber">
+                <strong class="gold">Business outcome</strong>
+                <p>Faster credit decisions, earlier loss prevention, stronger investor confidence, and a smaller manual-review burden for risk operations.</p>
+              </div>
+            </div>
+            <div class="ai-signal-grid">
+              <div class="ai-panel">
+                <h3 class="coral">Fraud risk</h3>
+                <p>Detect near-duplicate invoices, semantic document mismatches, abnormal tenor shifts, and suspicious submission cadence earlier.</p>
+              </div>
+              <div class="ai-panel">
+                <h3 class="blue">Credit risk</h3>
+                <p>Score probability of delay or default using repayment timing, dispute history, and concentration across buyer obligations.</p>
+              </div>
+              <div class="ai-panel">
+                <h3 class="green">Operational risk</h3>
+                <p>Surface supplier reliability issues from correction frequency, completeness gaps, and recurring workflow exceptions.</p>
+              </div>
+              <div class="ai-panel">
+                <h3 class="gold">Portfolio risk</h3>
+                <p>Track exposure drift across buyers, sectors, geographies, and funded assets before deterioration shows up in realized losses.</p>
+              </div>
+            </div>
+          </div>
+          <div class="footer"><span>Smart Finux Labs &middot; Verity SCF + AI</span><span>06</span></div>
+        </div>
+        <nav class="slide-nav" aria-label="Slide navigation">
+          <a class="slide-arrow prev" href="#slide-5" title="Previous slide" aria-label="Previous slide">&lsaquo;</a>
+          <a class="slide-arrow next" href="#slide-7" title="Next slide" aria-label="Next slide">&rsaquo;</a>
+        </nav>
+      </section>
+
+      <section class="slide" id="slide-7" tabindex="-1" aria-label="Slide 7">
+        <div class="slide-inner">
+          <p class="eyebrow">AI RISK ANALYSIS / WORKFLOW FIT</p>
+          <h2>Each workflow state gets an explainable AI output that improves prioritization, pricing, and monitoring.</h2>
+          <div class="ai-card-grid">
+            <div class="ai-card bg-sky">
+              <h3 class="blue">1. Submission</h3>
+              <p>Score document completeness, invoice-to-PO semantic fit, abnormal value or tenor, and suspicious supplier behavior.</p>
+            </div>
+            <div class="ai-card bg-mint">
+              <h3 class="green">2. Buyer review</h3>
+              <p>Prioritize high-risk invoices, suggest hold reasons, and estimate dispute likelihood before acceptance becomes financeable.</p>
+            </div>
+            <div class="ai-card bg-amber">
+              <h3 class="gold">3. Funding eligibility</h3>
+              <p>Generate composite credit score, delay probability, expected loss, and pricing or advance-rate guidance.</p>
+            </div>
+          </div>
+          <div class="ai-panel-stack">
+            <div class="callout">
+              <strong>Investor allocation</strong>
+              <p>Translate model outputs into investor-safe narratives like low-risk anchor receivable, operationally volatile, or high-yield high-dispute exposure.</p>
+            </div>
+            <div class="callout dark">
+              <strong>Settlement monitoring</strong>
+              <p>Continuously assign watchlists, trigger early warning alerts, and queue collections or operations attention before maturity is missed.</p>
+            </div>
+          </div>
+          <div class="footer"><span>Smart Finux Labs &middot; Verity SCF + AI</span><span>07</span></div>
+        </div>
+        <nav class="slide-nav" aria-label="Slide navigation">
+          <a class="slide-arrow prev" href="#slide-6" title="Previous slide" aria-label="Previous slide">&lsaquo;</a>
+          <a class="slide-arrow next" href="#slide-8" title="Next slide" aria-label="Next slide">&rsaquo;</a>
+        </nav>
+      </section>
+
+      <section class="slide" id="slide-8" tabindex="-1" aria-label="Slide 8">
+        <div class="slide-inner">
+          <p class="eyebrow">AI RISK ANALYSIS / OPERATING MODEL</p>
+          <h2>The rollout should stay hybrid: deterministic controls first, explainable models second, human approval for material decisions.</h2>
+          <div class="ai-pillar-grid">
+            <div class="ai-tile bg-mint">
+              <h3 class="green">Hard controls</h3>
+              <p>Policy gates, eligibility rules, duplicate prevention, and acceptance states remain deterministic and auditable.</p>
+            </div>
+            <div class="ai-tile bg-sky">
+              <h3 class="blue">Model layer</h3>
+              <p>Prediction and anomaly models enrich buyer risk, supplier reliability, invoice fraud, and portfolio deterioration signals.</p>
+            </div>
+            <div class="ai-tile bg-amber">
+              <h3 class="gold">Explainability</h3>
+              <p>Every score should return reason codes, risk banding, and supporting factors that investors and operators can review.</p>
+            </div>
+            <div class="ai-tile bg-rose">
+              <h3 class="coral">Rollout path</h3>
+              <p>Start with advisory scoring, then controlled underwriting assistance, then portfolio-level early warning as data quality matures.</p>
+            </div>
+          </div>
+          <div class="ai-rule"><strong>Operating rule:</strong> AI enriches Verity's credit and fraud analysis, but funding decisions must remain explainable, reviewable, and overrideable by policy owners.</div>
+          <div class="footer"><span>Smart Finux Labs &middot; Verity SCF + AI</span><span>08</span></div>
+        </div>
+        <nav class="slide-nav" aria-label="Slide navigation">
+          <a class="slide-arrow prev" href="#slide-7" title="Previous slide" aria-label="Previous slide">&lsaquo;</a>
           <a class="slide-arrow next" href="#slide-1" title="Next slide" aria-label="Next slide">&rsaquo;</a>
         </nav>
       </section>
