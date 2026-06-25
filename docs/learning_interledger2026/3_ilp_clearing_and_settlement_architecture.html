@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ILP Clearing & Settlement Architecture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Node Animations & States */
+        .diagram-node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 10;
+        }
+        .diagram-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        
+        /* Dimming effect for interactivity */
+        .diagram-container.dimmed .diagram-node:not(.active) { opacity: 0.3; filter: grayscale(80%); }
+        .diagram-container.dimmed .svg-connection:not(.active) { opacity: 0.08; }
+        
+        /* SVG Line styling */
+        .svg-connection {
+            transition: opacity 0.3s ease;
+        }
+        .svg-connection path {
+            animation: dash 15s linear infinite;
+        }
+        @keyframes dash { to { stroke-dashoffset: -1000; } }
+        
+        /* Specific Node Colors */
+        .bg-peer { background: #ffffff; border: 1px solid #cbd5e1; }
+        .bg-balance { background: #f1f5f9; border: 1px inset #e2e8f0; }
+        .bg-engine { background: #fdf4ff; border: 1px solid #f0abfc; color: #701a75; }
+        .bg-ledger { background: #0f172a; border: 1px solid #334155; color: #f8fafc; }
+
+        /* Balance Indicator Animation */
+        .balance-fill { transition: width 0.5s ease, background-color 0.5s ease; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-white border-b border-slate-200 px-6 py-4 shadow-sm z-20 flex-shrink-0 flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <a href="index.html" class="text-slate-500 hover:text-blue-600 p-2 text-xs font-semibold rounded-lg border border-slate-200 hover:border-blue-200 bg-slate-50 hover:bg-blue-50/50 transition-all flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-house"></i> Learning Hub
+            </a>
+            <div class="h-6 w-px bg-slate-200"></div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-scale-balanced text-indigo-600"></i> ILP Peering, Clearing & Settlement
+                </h1>
+                <p class="text-slate-500 text-xs mt-0.5 font-medium">Architectural abstraction between high-speed packet clearing (Balances) and underlying ledger settlement.</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <!-- Topic Dropdown -->
+            <div class="relative inline-block text-left" id="nav-dropdown">
+                <button type="button" class="inline-flex justify-between items-center w-56 rounded-md border border-slate-200 shadow-sm px-4 py-1.5 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none transition-all" id="nav-menu-button">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-map text-blue-500"></i> 3. Clearing & Settlement</span>
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i>
+                </button>
+                <div class="origin-top-right absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-slate-100 focus:outline-none hidden z-30" id="nav-menu-dropdown">
+                    <div class="py-1">
+                        <a href="1_interledger_protocol_architecture.html" class="text-slate-700 hover:bg-slate-50 hover:text-slate-900 block px-4 py-2 text-xs">1. Protocol Architecture</a>
+                        <a href="2_interledger_protocol_stack_architecture.html" class="text-slate-700 hover:bg-slate-50 hover:text-slate-900 block px-4 py-2 text-xs">2. Protocol Stack</a>
+                        <a href="3_ilp_clearing_and_settlement_architecture.html" class="bg-blue-50 text-blue-700 block px-4 py-2 text-xs font-semibold">3. Clearing & Settlement</a>
+                        <a href="4_settlement_engines_architecture.html" class="text-slate-700 hover:bg-slate-50 hover:text-slate-900 block px-4 py-2 text-xs">4. Settlement Engines</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-[10px] font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200 flex items-center shadow-sm">
+                <i class="fa-solid fa-bolt mr-1"></i> CLEARING (High Speed)
+            </div>
+            <div class="text-[10px] font-mono bg-emerald-50 text-emerald-700 px-2 py-1 rounded border border-emerald-200 flex items-center shadow-sm">
+                <i class="fa-solid fa-building-columns mr-1"></i> SETTLEMENT (Async/Slow)
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        
+        <!-- Sidebar / Process Description -->
+        <aside class="w-1/3 max-w-sm bg-white border-r border-slate-200 p-6 flex flex-col shadow-sm z-20 overflow-hidden">
+            <h2 class="text-sm uppercase tracking-wider font-bold border-b border-slate-100 pb-3 mb-4 text-slate-800">The Accounting Lifecycle</h2>
+            <p class="text-xs text-slate-500 mb-6">Hover over steps to highlight the separation of concerns between ILP Nodes and Settlement Engines.</p>
+            
+            <div class="steps-container flex-1 overflow-y-auto pr-2 space-y-3 text-sm" id="step-list">
+                
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-slate-50 hover:border-slate-200 cursor-pointer transition-all" data-step="1">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-blue-100 text-blue-700 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</div>
+                        <div>
+                            <h3 class="font-bold text-slate-800">Clearing (Packet Flow)</h3>
+                            <p class="mt-1 text-slate-500 text-xs leading-relaxed">As <code>ILP Fulfill</code> packets are routed from Peer B to Peer A, Peer A incurs a debt. Both nodes instantly update their internal <strong>Clearing Balances</strong>. No real money has moved yet.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-amber-50 hover:border-amber-200 cursor-pointer transition-all" data-step="2">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-amber-200 text-amber-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</div>
+                        <div>
+                            <h3 class="font-bold text-amber-900">Settle Threshold Hit</h3>
+                            <p class="mt-1 text-amber-700 text-xs leading-relaxed">Peer A's balance for Peer B drops below a configured <code>settle_threshold</code>. Peer A decides it must pay Peer B to continue peering.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-fuchsia-50 hover:border-fuchsia-200 cursor-pointer transition-all" data-step="3">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-fuchsia-200 text-fuchsia-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</div>
+                        <div>
+                            <h3 class="font-bold text-fuchsia-900">Trigger Settlement Engine</h3>
+                            <p class="mt-1 text-fuchsia-700 text-xs leading-relaxed">Peer A's ILP Node sends an API request to its local <strong>Settlement Engine (SE)</strong> instructing it to settle the specific amount owed to Peer B.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer transition-all" data-step="4">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-emerald-200 text-emerald-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">4</div>
+                        <div>
+                            <h3 class="font-bold text-emerald-900">Ledger Transfer</h3>
+                            <p class="mt-1 text-emerald-700 text-xs leading-relaxed">Peer A's SE executes a transaction on the underlying ledger (e.g., Ethereum) transferring real value to Peer B's SE account.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-indigo-50 hover:border-indigo-200 cursor-pointer transition-all" data-step="5">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-indigo-200 text-indigo-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">5</div>
+                        <div>
+                            <h3 class="font-bold text-indigo-900">Receipt & Notification</h3>
+                            <p class="mt-1 text-indigo-700 text-xs leading-relaxed">Peer B's SE monitors the ledger, detects the incoming funds, and makes an API call back to Peer B's ILP Node acknowledging receipt.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all" data-step="6">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-blue-200 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">6</div>
+                        <div>
+                            <h3 class="font-bold text-blue-900">Balance Credited</h3>
+                            <p class="mt-1 text-blue-700 text-xs leading-relaxed">Peer B updates its internal Clearing Balance, zeroing out Peer A's debt. Trust is restored, and high-speed packet routing continues.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <section class="flex-1 relative p-8 overflow-auto bg-slate-50/50" id="diagram-scroll-area">
+            
+            <div id="diagram-container" class="diagram-container relative w-full min-w-[900px] h-full min-h-[700px] mx-auto">
+                
+                <!-- SVG layer for connecting lines -->
+                <svg id="lines-svg" class="absolute inset-0 w-full h-full pointer-events-none z-0"></svg>
+
+                <!-- LAYER TITLES -->
+                <div class="absolute top-[2%] left-[50%] -translate-x-1/2 text-xs font-bold text-slate-400 uppercase tracking-widest text-center w-full">
+                    <span class="bg-slate-50 px-2 border-b-2 border-blue-400">Layer 1: High-Speed Packet Clearing (ILP Nodes)</span>
+                </div>
+                <div class="absolute top-[48%] left-[50%] -translate-x-1/2 text-xs font-bold text-slate-400 uppercase tracking-widest text-center w-full">
+                    <span class="bg-slate-50 px-2 border-b-2 border-fuchsia-400">Layer 2: Settlement Abstraction (Settlement Engines)</span>
+                </div>
+                <div class="absolute top-[82%] left-[50%] -translate-x-1/2 text-xs font-bold text-slate-400 uppercase tracking-widest text-center w-full">
+                    <span class="bg-slate-50 px-2 border-b-2 border-emerald-400">Layer 3: Value Transfer (Underlying Ledger)</span>
+                </div>
+
+
+                <!-- ================= PEER A (LEFT SIDE) ================= -->
+                
+                <!-- Peer A ILP Node -->
+                <div class="absolute top-[12%] left-[15%] w-64 diagram-node bg-peer p-4 rounded-xl shadow-md border-t-4 border-t-blue-500" id="node-peer-a" data-steps="1,2,3,6">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="font-bold text-sm text-slate-800"><i class="fa-solid fa-server text-blue-500 mr-2"></i>Peer A (ILP Node)</div>
+                        <div class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono">Connector</div>
+                    </div>
+                    
+                    <!-- Internal Accounting Box -->
+                    <div class="bg-balance p-3 rounded-lg text-center relative overflow-hidden" id="balance-a" data-steps="1,2,6">
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Clearing Balance (vs Peer B)</div>
+                        <div class="text-xl font-mono font-bold text-red-500" id="val-bal-a">- $10.00</div>
+                        
+                        <!-- Visual Gauge -->
+                        <div class="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden flex">
+                            <div class="h-full bg-slate-400 w-1/2 border-r border-white"></div>
+                            <div class="h-full bg-red-400 w-1/2 transform origin-left scale-x-100 balance-fill" id="gauge-a"></div>
+                        </div>
+                        <div class="text-[9px] text-slate-400 mt-1 flex justify-between">
+                            <span>Settle Threshold</span>
+                            <span>Max Balance</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peer A Settlement Engine -->
+                <div class="absolute top-[55%] left-[15%] w-64 diagram-node bg-engine p-4 rounded-xl shadow-md text-center" id="node-se-a" data-steps="3,4">
+                    <div class="text-fuchsia-600 mb-2"><i class="fa-solid fa-gears text-2xl"></i></div>
+                    <div class="font-bold text-sm text-fuchsia-900">Settlement Engine A</div>
+                    <div class="text-[10px] text-fuchsia-700 mt-1 uppercase tracking-wider">Plugin: ETH-Ledger</div>
+                    <div class="mt-2 text-[10px] bg-white rounded p-1 border border-fuchsia-200 inline-block">
+                        API: <code>POST /accounts/peer_b/settlements</code>
+                    </div>
+                </div>
+
+
+                <!-- ================= PEER B (RIGHT SIDE) ================= -->
+                
+                <!-- Peer B ILP Node -->
+                <div class="absolute top-[12%] right-[15%] w-64 diagram-node bg-peer p-4 rounded-xl shadow-md border-t-4 border-t-blue-500" id="node-peer-b" data-steps="1,5,6">
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-mono">Connector</div>
+                        <div class="font-bold text-sm text-slate-800">Peer B (ILP Node)<i class="fa-solid fa-server text-blue-500 ml-2"></i></div>
+                    </div>
+                    
+                    <!-- Internal Accounting Box -->
+                    <div class="bg-balance p-3 rounded-lg text-center relative overflow-hidden" id="balance-b" data-steps="1,6">
+                        <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Clearing Balance (vs Peer A)</div>
+                        <div class="text-xl font-mono font-bold text-emerald-500" id="val-bal-b">+ $10.00</div>
+                        
+                        <!-- Visual Gauge -->
+                        <div class="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden flex flex-row-reverse">
+                            <div class="h-full bg-slate-400 w-1/2 border-l border-white"></div>
+                            <div class="h-full bg-emerald-400 w-1/2 transform origin-right scale-x-100 balance-fill" id="gauge-b"></div>
+                        </div>
+                        <div class="text-[9px] text-slate-400 mt-1 flex justify-between">
+                            <span>Max Balance</span>
+                            <span>Settle Threshold</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peer B Settlement Engine -->
+                <div class="absolute top-[55%] right-[15%] w-64 diagram-node bg-engine p-4 rounded-xl shadow-md text-center" id="node-se-b" data-steps="4,5">
+                    <div class="text-fuchsia-600 mb-2"><i class="fa-solid fa-gears text-2xl"></i></div>
+                    <div class="font-bold text-sm text-fuchsia-900">Settlement Engine B</div>
+                    <div class="text-[10px] text-fuchsia-700 mt-1 uppercase tracking-wider">Plugin: ETH-Ledger</div>
+                    <div class="mt-2 text-[10px] bg-white rounded p-1 border border-fuchsia-200 inline-block">
+                        Event Listener: <code>OnTxConfirmed</code>
+                    </div>
+                </div>
+
+
+                <!-- ================= UNDERLYING LEDGER (BOTTOM) ================= -->
+                
+                <div class="absolute top-[88%] left-[50%] -translate-x-1/2 w-3/4 max-w-2xl diagram-node bg-ledger p-4 rounded-xl shadow-lg text-center" id="node-ledger" data-steps="4">
+                    <div class="flex justify-center items-center gap-4">
+                        <i class="fa-brands fa-ethereum text-3xl text-slate-400"></i>
+                        <div>
+                            <div class="font-bold text-base tracking-wide">Underlying Ledger (e.g., Ethereum Network)</div>
+                            <div class="text-[10px] text-slate-400 mt-1 font-mono">Immutable Value Settlement Layer</div>
+                        </div>
+                        <i class="fa-solid fa-building-columns text-2xl text-slate-400"></i>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const svg = document.getElementById('lines-svg');
+            const container = document.getElementById('diagram-container');
+            const stepItems = document.querySelectorAll('.step-item');
+            
+            // Define connections and logic
+            const connections = [
+                // Step 1: Clearing (Packet Flow)
+                { from: 'node-peer-b', to: 'node-peer-a', step: '1', label: 'ILP Fulfill (Data)', color: '#3b82f6', curve: 'top-arch', dashed: false },
+                
+                // Step 3: Trigger SE
+                { from: 'node-peer-a', to: 'node-se-a', step: '3', label: 'Trigger Settlement (API)', color: '#d946ef', curve: 'straight', dashed: true },
+                
+                // Step 4: Ledger Transfer
+                { from: 'node-se-a', to: 'node-ledger', step: '4', label: 'Submit Tx', color: '#10b981', curve: 'straight', dashed: false },
+                { from: 'node-ledger', to: 'node-se-b', step: '4', label: 'Tx Confirmed Event', color: '#10b981', curve: 'straight', dashed: false },
+                
+                // Step 5: Notification
+                { from: 'node-se-b', to: 'node-peer-b', step: '5', label: 'Notify Receipt (API)', color: '#6366f1', curve: 'straight', dashed: true },
+            ];
+
+            let pathElements = [];
+
+            function drawLines() {
+                svg.innerHTML = '';
+                pathElements = [];
+
+                // Create definitions for arrowheads
+                const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                const colors = [...new Set(connections.map(c => c.color))];
+                
+                colors.forEach(color => {
+                    const cleanColor = color.replace('#', '');
+                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                    marker.setAttribute('id', `arrow-${cleanColor}`);
+                    marker.setAttribute('markerWidth', '10');
+                    marker.setAttribute('markerHeight', '7');
+                    marker.setAttribute('refX', '9');
+                    marker.setAttribute('refY', '3.5');
+                    marker.setAttribute('orient', 'auto');
+                    
+                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+                    polygon.setAttribute('fill', color);
+                    
+                    marker.appendChild(polygon);
+                    defs.appendChild(marker);
+                });
+                svg.appendChild(defs);
+
+                const containerRect = container.getBoundingClientRect();
+
+                connections.forEach((conn) => {
+                    const el1 = document.getElementById(conn.from);
+                    const el2 = document.getElementById(conn.to);
+                    if (!el1 || !el2) return;
+
+                    const r1 = el1.getBoundingClientRect();
+                    const r2 = el2.getBoundingClientRect();
+
+                    // Calculate centers
+                    let startX = r1.left - containerRect.left + r1.width / 2;
+                    let startY = r1.top - containerRect.top + r1.height / 2;
+                    let endX = r2.left - containerRect.left + r2.width / 2;
+                    let endY = r2.top - containerRect.top + r2.height / 2;
+
+                    let d = '';
+                    
+                    if (conn.curve === 'top-arch') {
+                        // Routing ILP packet across the top
+                        d = `M ${startX} ${startY - r1.height/2} C ${startX} ${startY - 120}, ${endX} ${endY - 120}, ${endX} ${endY - r2.height/2}`;
+                    } else if (conn.curve === 'straight') {
+                        // Adjust points to perimeter of boxes for straight vertical/diagonal lines
+                        if (startY < endY) {
+                            startY += r1.height/2;
+                            endY -= r2.height/2;
+                        } else {
+                            startY -= r1.height/2;
+                            endY += r2.height/2;
+                        }
+                        d = `M ${startX} ${startY} L ${endX} ${endY}`;
+                    }
+
+                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    g.setAttribute('class', 'svg-connection');
+                    g.setAttribute('data-step', conn.step);
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', d);
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke', conn.color);
+                    path.setAttribute('stroke-width', '2');
+                    
+                    if (conn.dashed) {
+                         path.setAttribute('stroke-dasharray', '6 4');
+                         // path.style.animation = 'none'; // Keep animation for APIs to show active polling/push
+                    } else {
+                         path.setAttribute('stroke-dasharray', '10 5');
+                    }
+                    
+                    const cleanColor = conn.color.replace('#', '');
+                    path.setAttribute('marker-end', `url(#arrow-${cleanColor})`);
+                    
+                    g.appendChild(path);
+
+                    // Add Label background and text
+                    if (conn.label) {
+                        let midX, midY;
+                        if (conn.curve === 'top-arch') {
+                            midX = (startX + endX) / 2;
+                            midY = Math.min(startY, endY) - 75; // Estimate curve peak
+                        } else {
+                            midX = (startX + endX) / 2;
+                            midY = (startY + endY) / 2;
+                        }
+                        
+                        const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        
+                        text.setAttribute('x', midX);
+                        text.setAttribute('y', midY);
+                        text.setAttribute('text-anchor', 'middle');
+                        text.setAttribute('dominant-baseline', 'middle');
+                        text.setAttribute('fill', conn.color);
+                        text.setAttribute('font-size', '11px');
+                        text.setAttribute('font-family', 'Inter, sans-serif');
+                        text.setAttribute('font-weight', '600');
+                        text.textContent = conn.label;
+
+                        const estimatedWidth = conn.label.length * 6.5 + 16; 
+                        textBg.setAttribute('x', midX - estimatedWidth/2);
+                        textBg.setAttribute('y', midY - 9);
+                        textBg.setAttribute('width', estimatedWidth);
+                        textBg.setAttribute('height', '18');
+                        textBg.setAttribute('fill', '#ffffff');
+                        textBg.setAttribute('rx', '4');
+                        textBg.setAttribute('stroke', conn.color);
+                        textBg.setAttribute('stroke-width', '1');
+                        textBg.setAttribute('opacity', '0.9');
+
+                        g.appendChild(textBg);
+                        g.appendChild(text);
+                    }
+
+                    svg.appendChild(g);
+                    pathElements.push({ group: g, step: conn.step });
+                });
+            }
+
+            // Ensure rendering happens after layout is complete
+            setTimeout(() => {
+                drawLines();
+                window.addEventListener('resize', drawLines);
+            }, 150);
+
+            // UI Interactivity
+            const valBalA = document.getElementById('val-bal-a');
+            const valBalB = document.getElementById('val-bal-b');
+            const gaugeA = document.getElementById('gauge-a');
+            const gaugeB = document.getElementById('gauge-b');
+
+            stepItems.forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    const stepId = item.getAttribute('data-step');
+                    container.classList.add('dimmed');
+                    
+                    // Highlight Nodes
+                    document.querySelectorAll('.diagram-node, #balance-a, #balance-b').forEach(node => {
+                        const steps = node.getAttribute('data-steps');
+                        if (steps && steps.split(',').includes(stepId)) {
+                            node.classList.add('active');
+                        } else {
+                            node.classList.remove('active');
+                        }
+                    });
+
+                    // Highlight Paths
+                    pathElements.forEach(p => {
+                        if (p.step === stepId) {
+                            p.group.classList.add('active');
+                            p.group.style.opacity = '1';
+                        } else {
+                            p.group.classList.remove('active');
+                        }
+                    });
+
+                    // Simulate Balance Changes for visual context
+                    if (stepId === '6') {
+                        // Settled State
+                        valBalA.textContent = "$ 0.00";
+                        valBalA.classList.replace('text-red-500', 'text-slate-500');
+                        gaugeA.style.transform = 'scaleX(0)';
+                        
+                        valBalB.textContent = "$ 0.00";
+                        valBalB.classList.replace('text-emerald-500', 'text-slate-500');
+                        gaugeB.style.transform = 'scaleX(0)';
+                    } else {
+                        // Owed State
+                        valBalA.textContent = "- $10.00";
+                        valBalA.classList.replace('text-slate-500', 'text-red-500');
+                        gaugeA.style.transform = 'scaleX(1)';
+                        
+                        valBalB.textContent = "+ $10.00";
+                        valBalB.classList.replace('text-slate-500', 'text-emerald-500');
+                        gaugeB.style.transform = 'scaleX(1)';
+                    }
+                });
+
+                item.addEventListener('mouseleave', () => {
+                    container.classList.remove('dimmed');
+                    document.querySelectorAll('.diagram-node, #balance-a, #balance-b').forEach(n => n.classList.remove('active'));
+                    pathElements.forEach(p => {
+                        p.group.classList.remove('active');
+                        p.group.style.opacity = '1';
+                    });
+                    
+                    // Reset Balances
+                    valBalA.textContent = "- $10.00";
+                    valBalA.classList.replace('text-slate-500', 'text-red-500');
+                    gaugeA.style.transform = 'scaleX(1)';
+                    
+                    valBalB.textContent = "+ $10.00";
+                    valBalB.classList.replace('text-slate-500', 'text-emerald-500');
+                    gaugeB.style.transform = 'scaleX(1)';
+                });
+            });
+
+            // Navigation Dropdown Logic
+            const dropdownBtn = document.getElementById('nav-menu-button');
+            const dropdownMenu = document.getElementById('nav-menu-dropdown');
+            if (dropdownBtn && dropdownMenu) {
+                dropdownBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdownMenu.classList.toggle('hidden');
+                });
+                document.addEventListener('click', () => {
+                    dropdownMenu.classList.add('hidden');
+                });
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ILP Settlement Engines Architecture</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        .diagram-node {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 10;
+        }
+        .diagram-node:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        
+        .diagram-container.dimmed .diagram-node:not(.active) { opacity: 0.3; filter: grayscale(80%); }
+        .diagram-container.dimmed .svg-connection:not(.active) { opacity: 0.08; }
+        
+        .svg-connection { transition: opacity 0.3s ease; }
+        .svg-connection path { animation: dash 15s linear infinite; }
+        @keyframes dash { to { stroke-dashoffset: -1000; } }
+        
+        .bg-connector { background: #ffffff; border: 1px solid #94a3b8; }
+        .bg-accounting { background: #f1f5f9; border: 1px dashed #cbd5e1; }
+        .bg-engine { background: #fdf4ff; border: 1px solid #d946ef; color: #701a75; }
+        .bg-ledger { background: #0f172a; border: 1px solid #334155; color: #f8fafc; }
+    </style>
+</head>
+<body class="text-slate-800 h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-white border-b border-slate-200 px-6 py-4 shadow-sm z-20 flex-shrink-0 flex justify-between items-center">
+        <div class="flex items-center gap-4">
+            <a href="index.html" class="text-slate-500 hover:text-blue-600 p-2 text-xs font-semibold rounded-lg border border-slate-200 hover:border-blue-200 bg-slate-50 hover:bg-blue-50/50 transition-all flex items-center gap-1.5 shadow-sm">
+                <i class="fa-solid fa-house"></i> Learning Hub
+            </a>
+            <div class="h-6 w-px bg-slate-200"></div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+                    <i class="fa-solid fa-cogs text-fuchsia-600"></i> Settlement Engines Architecture
+                </h1>
+                <p class="text-slate-500 text-xs mt-0.5 font-medium">Decoupling accounting from settlement logic via standardized HTTP APIs and Message Proxying.</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <!-- Topic Dropdown -->
+            <div class="relative inline-block text-left" id="nav-dropdown">
+                <button type="button" class="inline-flex justify-between items-center w-56 rounded-md border border-slate-200 shadow-sm px-4 py-1.5 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 focus:outline-none transition-all" id="nav-menu-button">
+                    <span class="flex items-center gap-1.5"><i class="fa-solid fa-map text-blue-500"></i> 4. Settlement Engines</span>
+                    <i class="fa-solid fa-chevron-down text-slate-400 text-[10px]"></i>
+                </button>
+                <div class="origin-top-right absolute right-0 mt-1 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 divide-y divide-slate-100 focus:outline-none hidden z-30" id="nav-menu-dropdown">
+                    <div class="py-1">
+                        <a href="1_interledger_protocol_architecture.html" class="text-slate-700 hover:bg-slate-50 hover:text-slate-900 block px-4 py-2 text-xs">1. Protocol Architecture</a>
+                        <a href="2_interledger_protocol_stack_architecture.html" class="text-slate-700 hover:bg-slate-50 hover:text-slate-900 block px-4 py-2 text-xs">2. Protocol Stack</a>
+                        <a href="3_ilp_clearing_and_settlement_architecture.html" class="text-slate-700 hover:bg-slate-50 hover:text-slate-900 block px-4 py-2 text-xs">3. Clearing & Settlement</a>
+                        <a href="4_settlement_engines_architecture.html" class="bg-blue-50 text-blue-700 block px-4 py-2 text-xs font-semibold">4. Settlement Engines</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-[10px] font-mono bg-blue-50 text-blue-700 px-2 py-1 rounded border border-blue-200 flex items-center shadow-sm">
+                <i class="fa-solid fa-book mr-1"></i> ACCOUNTING
+            </div>
+            <div class="text-[10px] font-mono bg-fuchsia-50 text-fuchsia-700 px-2 py-1 rounded border border-fuchsia-200 flex items-center shadow-sm">
+                <i class="fa-solid fa-gears mr-1"></i> SETTLEMENT ENGINE
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+        
+        <aside class="w-1/3 max-w-sm bg-white border-r border-slate-200 p-6 flex flex-col shadow-sm z-20 overflow-hidden">
+            <h2 class="text-sm uppercase tracking-wider font-bold border-b border-slate-100 pb-3 mb-4 text-slate-800">Settlement Interaction Flow</h2>
+            <p class="text-xs text-slate-500 mb-6">Hover over steps to trace API calls between the Accounting System, Connector, and Settlement Engine.</p>
+            
+            <div class="steps-container flex-1 overflow-y-auto pr-2 space-y-3 text-sm" id="step-list">
+                
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-red-50 hover:border-red-200 cursor-pointer transition-all" data-step="1">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-red-100 text-red-700 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">1</div>
+                        <div>
+                            <h3 class="font-bold text-slate-800">Trigger Outgoing Settlement</h3>
+                            <p class="mt-1 text-slate-500 text-xs leading-relaxed">Peer A's Accounting System debits its <strong>Accounts Payable (Liability)</strong> and makes an HTTP <code>POST /accounts/:id/settlements</code> request to trigger SE A.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all" data-step="2">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-purple-200 text-purple-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">2</div>
+                        <div>
+                            <h3 class="font-bold text-purple-900">Proxy Outgoing Message</h3>
+                            <p class="mt-1 text-purple-700 text-xs leading-relaxed">SE A needs to exchange details (e.g., ledger IDs) with SE B. It sends <code>POST /accounts/:id/messages</code> to Connector A to proxy the message.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-blue-50 hover:border-blue-200 cursor-pointer transition-all" data-step="3">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-blue-200 text-blue-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">3</div>
+                        <div>
+                            <h3 class="font-bold text-blue-900">ILP peer.settle Transport</h3>
+                            <p class="mt-1 text-blue-700 text-xs leading-relaxed">Connector A wraps the message in an ILP Prepare addressed to <code>peer.settle</code> and sends it over the existing ILP transport to Connector B.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-purple-50 hover:border-purple-200 cursor-pointer transition-all" data-step="4">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-purple-200 text-purple-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">4</div>
+                        <div>
+                            <h3 class="font-bold text-purple-900">Proxy Incoming Message</h3>
+                            <p class="mt-1 text-purple-700 text-xs leading-relaxed">Connector B receives the ILP packet, extracts the data, and sends <code>POST /accounts/:id/messages</code> to SE B. (SE B replies via ILP Fulfill).</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-slate-100 hover:border-slate-300 cursor-pointer transition-all" data-step="5">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-slate-200 text-slate-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">5</div>
+                        <div>
+                            <h3 class="font-bold text-slate-900">Execute Ledger Settlement</h3>
+                            <p class="mt-1 text-slate-600 text-xs leading-relaxed">Having verified details, SE A executes an irrevocable transfer of the asset on the underlying Settlement System to SE B.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-item p-3 rounded-lg border border-transparent hover:bg-emerald-50 hover:border-emerald-200 cursor-pointer transition-all" data-step="6">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-emerald-200 text-emerald-800 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">6</div>
+                        <div>
+                            <h3 class="font-bold text-emerald-900">Credit Incoming Settlement</h3>
+                            <p class="mt-1 text-emerald-700 text-xs leading-relaxed">SE B detects the incoming funds on the ledger and calls <code>POST /accounts/:id/settlements</code> on Peer B's Accounting System to credit <strong>Accounts Receivable (Asset)</strong>.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+
+        <section class="flex-1 relative p-8 overflow-auto bg-slate-50/50" id="diagram-scroll-area">
+            
+            <div id="diagram-container" class="diagram-container relative w-full min-w-[900px] h-full min-h-[700px] mx-auto">
+                <svg id="lines-svg" class="absolute inset-0 w-full h-full pointer-events-none z-0"></svg>
+
+                <div class="absolute top-[2%] left-[50%] -translate-x-1/2 text-xs font-bold text-slate-400 uppercase tracking-widest text-center w-full">
+                    <span class="bg-slate-50 px-2 border-b-2 border-blue-400">Layer 1: Interledger Node (Routing & Accounting)</span>
+                </div>
+                <div class="absolute top-[52%] left-[50%] -translate-x-1/2 text-xs font-bold text-slate-400 uppercase tracking-widest text-center w-full">
+                    <span class="bg-slate-50 px-2 border-b-2 border-fuchsia-400">Layer 2: Settlement Engine (Abstraction)</span>
+                </div>
+                <div class="absolute top-[86%] left-[50%] -translate-x-1/2 text-xs font-bold text-slate-400 uppercase tracking-widest text-center w-full">
+                    <span class="bg-slate-50 px-2 border-b-2 border-slate-500">Layer 3: Underlying Ledger</span>
+                </div>
+
+                <!-- ================= PEER A (LEFT SIDE) ================= -->
+                
+                <!-- Peer A Connector -->
+                <div class="absolute top-[10%] left-[10%] w-72 diagram-node bg-connector p-4 rounded-xl shadow-md" id="node-conn-a" data-steps="2,3,4">
+                    <div class="font-bold text-sm text-slate-800 mb-2 border-b pb-2"><i class="fa-solid fa-network-wired text-blue-500 mr-2"></i>Connector A</div>
+                    
+                    <!-- Peer A Accounting System -->
+                    <div class="bg-accounting p-3 rounded-lg text-center relative mt-2" id="node-acc-a" data-steps="1">
+                        <div class="text-[11px] font-bold text-slate-600 mb-1"><i class="fa-solid fa-book-open mr-1"></i>Accounting System</div>
+                        <div class="flex justify-between text-[10px] mt-2">
+                            <div class="bg-white p-1.5 rounded border border-red-200 text-red-600 flex-1 mr-1">
+                                <div>Accounts Payable</div>
+                                <div class="font-mono font-bold">(Liability)</div>
+                            </div>
+                            <div class="bg-white p-1.5 rounded border border-emerald-200 text-emerald-600 flex-1 ml-1 opacity-50">
+                                <div>Accounts Rec.</div>
+                                <div class="font-mono font-bold">(Asset)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peer A Settlement Engine -->
+                <div class="absolute top-[58%] left-[10%] w-72 diagram-node bg-engine p-4 rounded-xl shadow-md text-center" id="node-se-a" data-steps="1,2,5">
+                    <div class="text-fuchsia-600 mb-2"><i class="fa-solid fa-gears text-2xl"></i></div>
+                    <div class="font-bold text-sm text-fuchsia-900">Settlement Engine A</div>
+                    <div class="text-[10px] text-fuchsia-700 mt-1">Independent Service / Process</div>
+                    
+                    <div class="mt-3 text-[9px] bg-white rounded p-1.5 border border-fuchsia-200 text-left space-y-1">
+                        <div class="font-mono text-slate-500">Exposes API to Connector:</div>
+                        <div class="font-mono bg-slate-50 p-1 rounded text-fuchsia-800 font-semibold">POST /accounts/:id/settlements</div>
+                        <div class="font-mono bg-slate-50 p-1 rounded text-purple-800 font-semibold">POST /accounts/:id/messages</div>
+                    </div>
+                </div>
+
+                <!-- ================= PEER B (RIGHT SIDE) ================= -->
+                
+                <!-- Peer B Connector -->
+                <div class="absolute top-[10%] right-[10%] w-72 diagram-node bg-connector p-4 rounded-xl shadow-md" id="node-conn-b" data-steps="3,4">
+                    <div class="font-bold text-sm text-slate-800 mb-2 border-b pb-2 text-right">Connector B<i class="fa-solid fa-network-wired text-blue-500 ml-2"></i></div>
+                    
+                    <!-- Peer B Accounting System -->
+                    <div class="bg-accounting p-3 rounded-lg text-center relative mt-2" id="node-acc-b" data-steps="6">
+                        <div class="text-[11px] font-bold text-slate-600 mb-1"><i class="fa-solid fa-book-open mr-1"></i>Accounting System</div>
+                        <div class="flex justify-between text-[10px] mt-2">
+                            <div class="bg-white p-1.5 rounded border border-red-200 text-red-600 flex-1 mr-1 opacity-50">
+                                <div>Accounts Payable</div>
+                                <div class="font-mono font-bold">(Liability)</div>
+                            </div>
+                            <div class="bg-white p-1.5 rounded border border-emerald-200 text-emerald-600 flex-1 ml-1">
+                                <div>Accounts Rec.</div>
+                                <div class="font-mono font-bold">(Asset)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Peer B Settlement Engine -->
+                <div class="absolute top-[58%] right-[10%] w-72 diagram-node bg-engine p-4 rounded-xl shadow-md text-center" id="node-se-b" data-steps="4,5,6">
+                    <div class="text-fuchsia-600 mb-2"><i class="fa-solid fa-gears text-2xl"></i></div>
+                    <div class="font-bold text-sm text-fuchsia-900">Settlement Engine B</div>
+                    <div class="text-[10px] text-fuchsia-700 mt-1">Independent Service / Process</div>
+                    
+                    <div class="mt-3 text-[9px] bg-white rounded p-1.5 border border-fuchsia-200 text-left space-y-1">
+                        <div class="font-mono text-slate-500">Calls Connector API:</div>
+                        <div class="font-mono bg-slate-50 p-1 rounded text-emerald-800 font-semibold">POST /accounts/:id/settlements</div>
+                        <div class="font-mono text-slate-500 mt-1 pt-1 border-t border-fuchsia-100">Exposes API to Connector:</div>
+                        <div class="font-mono bg-slate-50 p-1 rounded text-purple-800 font-semibold">POST /accounts/:id/messages</div>
+                    </div>
+                </div>
+
+                <!-- ================= UNDERLYING LEDGER ================= -->
+                <div class="absolute top-[92%] left-[50%] -translate-x-1/2 w-3/4 max-w-2xl diagram-node bg-ledger p-4 rounded-xl shadow-lg text-center" id="node-ledger" data-steps="5">
+                    <div class="flex justify-center items-center gap-4">
+                        <i class="fa-solid fa-link text-2xl text-slate-400"></i>
+                        <div>
+                            <div class="font-bold text-base tracking-wide">Shared Settlement System / Ledger</div>
+                        </div>
+                        <i class="fa-solid fa-money-bill-transfer text-2xl text-slate-400"></i>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const svg = document.getElementById('lines-svg');
+            const container = document.getElementById('diagram-container');
+            const stepItems = document.querySelectorAll('.step-item');
+            
+            const connections = [
+                // Step 1: Accounting -> SE (Trigger Settlement)
+                { from: 'node-acc-a', to: 'node-se-a', step: '1', label: 'POST /accounts/:id/settlements', color: '#dc2626', curve: 'straight', offsetFromX: 0, dashed: false },
+                
+                // Step 2: SE -> Connector (Proxy Outgoing Message)
+                { from: 'node-se-a', to: 'node-acc-a', step: '2', label: 'POST /accounts/:id/messages', color: '#9333ea', curve: 'arc-left', offsetFromX: -50, offsetToX: -50, dashed: true },
+                
+                // Step 3: Connector -> Connector (peer.settle ILP Prepare)
+                { from: 'node-conn-a', to: 'node-conn-b', step: '3', label: 'ILP Prepare (dest: peer.settle)', color: '#2563eb', curve: 'top-arch', dashed: false },
+                
+                // Step 4: Connector B -> SE B (Proxy Incoming Message)
+                { from: 'node-acc-b', to: 'node-se-b', step: '4', label: 'POST /accounts/:id/messages', color: '#9333ea', curve: 'arc-right', offsetFromX: 50, offsetToX: 50, dashed: true },
+                
+                // Step 5: SE A -> Ledger -> SE B (Value Transfer)
+                { from: 'node-se-a', to: 'node-se-b', step: '5', label: 'Irrevocable Ledger Transfer', color: '#475569', curve: 'bottom-arch', dashed: false },
+                
+                // Step 6: SE B -> Accounting B (Credit Incoming)
+                { from: 'node-se-b', to: 'node-acc-b', step: '6', label: 'POST /accounts/:id/settlements', color: '#059669', curve: 'straight', offsetFromX: 0, dashed: false },
+            ];
+
+            let pathElements = [];
+
+            function drawLines() {
+                svg.innerHTML = '';
+                pathElements = [];
+
+                const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                const colors = [...new Set(connections.map(c => c.color))];
+                
+                colors.forEach(color => {
+                    const cleanColor = color.replace('#', '');
+                    const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                    marker.setAttribute('id', `arrow-${cleanColor}`);
+                    marker.setAttribute('markerWidth', '10');
+                    marker.setAttribute('markerHeight', '7');
+                    marker.setAttribute('refX', '9');
+                    marker.setAttribute('refY', '3.5');
+                    marker.setAttribute('orient', 'auto');
+                    
+                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    polygon.setAttribute('points', '0 0, 10 3.5, 0 7');
+                    polygon.setAttribute('fill', color);
+                    
+                    marker.appendChild(polygon);
+                    defs.appendChild(marker);
+                });
+                svg.appendChild(defs);
+
+                const containerRect = container.getBoundingClientRect();
+
+                connections.forEach((conn) => {
+                    const el1 = document.getElementById(conn.from);
+                    const el2 = document.getElementById(conn.to);
+                    if (!el1 || !el2) return;
+
+                    const r1 = el1.getBoundingClientRect();
+                    const r2 = el2.getBoundingClientRect();
+
+                    let startX = r1.left - containerRect.left + r1.width / 2 + (conn.offsetFromX || 0);
+                    let startY = r1.top - containerRect.top + r1.height / 2;
+                    let endX = r2.left - containerRect.left + r2.width / 2 + (conn.offsetToX || 0);
+                    let endY = r2.top - containerRect.top + r2.height / 2;
+
+                    let d = '';
+                    
+                    if (conn.curve === 'top-arch') {
+                        d = `M ${startX} ${startY - r1.height/2} C ${startX} ${startY - 100}, ${endX} ${endY - 100}, ${endX} ${endY - r2.height/2}`;
+                    } else if (conn.curve === 'bottom-arch') {
+                        // Routing through ledger conceptually
+                        d = `M ${startX} ${startY + r1.height/2} C ${startX} ${startY + 200}, ${endX} ${endY + 200}, ${endX} ${endY + r2.height/2}`;
+                    } else if (conn.curve === 'arc-left') {
+                        d = `M ${startX} ${startY - r1.height/2} C ${startX - 100} ${startY}, ${endX - 100} ${endY}, ${endX} ${endY + r2.height/2}`;
+                    } else if (conn.curve === 'arc-right') {
+                         d = `M ${startX} ${startY + r1.height/2} C ${startX + 100} ${startY}, ${endX + 100} ${endY}, ${endX} ${endY - r2.height/2}`;
+                    } else if (conn.curve === 'straight') {
+                        if (startY < endY) {
+                            startY += r1.height/2;
+                            endY -= r2.height/2;
+                        } else {
+                            startY -= r1.height/2;
+                            endY += r2.height/2;
+                        }
+                        d = `M ${startX} ${startY} L ${endX} ${endY}`;
+                    }
+
+                    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                    g.setAttribute('class', 'svg-connection');
+                    g.setAttribute('data-step', conn.step);
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('d', d);
+                    path.setAttribute('fill', 'none');
+                    path.setAttribute('stroke', conn.color);
+                    path.setAttribute('stroke-width', '2');
+                    
+                    if (conn.dashed) {
+                         path.setAttribute('stroke-dasharray', '6 4');
+                    } else {
+                         path.setAttribute('stroke-dasharray', '10 5');
+                    }
+                    
+                    const cleanColor = conn.color.replace('#', '');
+                    path.setAttribute('marker-end', `url(#arrow-${cleanColor})`);
+                    
+                    g.appendChild(path);
+
+                    if (conn.label) {
+                        let midX, midY;
+                        if (conn.curve === 'top-arch') {
+                            midX = (startX + endX) / 2;
+                            midY = Math.min(startY, endY) - 55;
+                        } else if (conn.curve === 'bottom-arch') {
+                            midX = (startX + endX) / 2;
+                            midY = Math.max(startY, endY) + 120;
+                        } else if (conn.curve === 'arc-left') {
+                            midX = startX - 50;
+                            midY = (startY + endY) / 2;
+                        } else if (conn.curve === 'arc-right') {
+                            midX = startX + 50;
+                            midY = (startY + endY) / 2;
+                        } else {
+                            midX = (startX + endX) / 2;
+                            midY = (startY + endY) / 2;
+                        }
+                        
+                        const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        
+                        text.setAttribute('x', midX);
+                        text.setAttribute('y', midY);
+                        text.setAttribute('text-anchor', 'middle');
+                        text.setAttribute('dominant-baseline', 'middle');
+                        text.setAttribute('fill', conn.color);
+                        text.setAttribute('font-size', '11px');
+                        text.setAttribute('font-family', 'Inter, sans-serif');
+                        text.setAttribute('font-weight', '600');
+                        text.textContent = conn.label;
+
+                        const estimatedWidth = conn.label.length * 6.5 + 16; 
+                        textBg.setAttribute('x', midX - estimatedWidth/2);
+                        textBg.setAttribute('y', midY - 9);
+                        textBg.setAttribute('width', estimatedWidth);
+                        textBg.setAttribute('height', '18');
+                        textBg.setAttribute('fill', '#ffffff');
+                        textBg.setAttribute('rx', '4');
+                        textBg.setAttribute('stroke', conn.color);
+                        textBg.setAttribute('stroke-width', '1');
+                        textBg.setAttribute('opacity', '0.95');
+
+                        g.appendChild(textBg);
+                        g.appendChild(text);
+                    }
+
+                    svg.appendChild(g);
+                    pathElements.push({ group: g, step: conn.step });
+                });
+            }
+
+            setTimeout(() => {
+                drawLines();
+                window.addEventListener('resize', drawLines);
+            }, 150);
+
+            stepItems.forEach(item => {
+                item.addEventListener('mouseenter', () => {
+                    const stepId = item.getAttribute('data-step');
+                    container.classList.add('dimmed');
+                    
+                    document.querySelectorAll('.diagram-node, .bg-accounting').forEach(node => {
+                        const steps = node.getAttribute('data-steps');
+                        if (steps && steps.split(',').includes(stepId)) {
+                            node.classList.add('active');
+                            if(node.parentElement.classList.contains('diagram-node')) {
+                                node.parentElement.classList.add('active');
+                            }
+                        } else {
+                            node.classList.remove('active');
+                        }
+                    });
+
+                    pathElements.forEach(p => {
+                        if (p.step === stepId) {
+                            p.group.classList.add('active');
+                            p.group.style.opacity = '1';
+                        } else {
+                            p.group.classList.remove('active');
+                        }
+                    });
+                });
+
+                item.addEventListener('mouseleave', () => {
+                    container.classList.remove('dimmed');
+                    document.querySelectorAll('.diagram-node, .bg-accounting').forEach(n => n.classList.remove('active'));
+                    pathElements.forEach(p => {
+                        p.group.classList.remove('active');
+                        p.group.style.opacity = '1';
+                    });
+                });
+            });
+
+            // Navigation Dropdown Logic
+            const dropdownBtn = document.getElementById('nav-menu-button');
+            const dropdownMenu = document.getElementById('nav-menu-dropdown');
+            if (dropdownBtn && dropdownMenu) {
+                dropdownBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    dropdownMenu.classList.toggle('hidden');
+                });
+                document.addEventListener('click', () => {
+                    dropdownMenu.classList.add('hidden');
+                });
+            }
+        });
+    </script>
+</body>
+</html>
